@@ -143,7 +143,7 @@ NOTES:
  *   Rating: 1
  */
 int bitXor(int x, int y) {
-  return 2;
+  return x ^ y;
 }
 /* 
  * tmin - return minimum two's complement integer 
@@ -152,9 +152,7 @@ int bitXor(int x, int y) {
  *   Rating: 1
  */
 int tmin(void) {
-
-  return 2;
-
+  return 1 << 31;
 }
 //2
 /*
@@ -164,8 +162,9 @@ int tmin(void) {
  *   Max ops: 10
  *   Rating: 1
  */
+//等号的操作可以直接利用a == b 等价于 !(a ^b)，因为完全相等的自己跟自己异或为0，否则不为0布尔值即为1
 int isTmax(int x) {
-  return 2;
+  return !((~(x+1)^x))&(!!(x+1));//加！变为布尔值,当然最后加个按位且又变为返回int
 }
 /* 
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
@@ -176,7 +175,8 @@ int isTmax(int x) {
  *   Rating: 2
  */
 int allOddBits(int x) {
-  return 2;
+  int a = (((0xAA << 8 | 0xAA) << 16) | ((0xAA << 8) | 0xAA));
+  return !((x & a) ^ a);
 }
 /* 
  * negate - return -x 
@@ -186,7 +186,7 @@ int allOddBits(int x) {
  *   Rating: 2
  */
 int negate(int x) {
-  return 2;
+  return ~x+1;
 }
 //3
 /* 
@@ -199,7 +199,7 @@ int negate(int x) {
  *   Rating: 3
  */
 int isAsciiDigit(int x) {
-  return 2;
+  return (!((x + (~(0x30)+1)) >> 31) & 1) & (!((0x39 + (~x+1)) >> 31) & 1);
 }
 /* 
  * conditional - same as x ? y : z 
@@ -207,9 +207,10 @@ int isAsciiDigit(int x) {
  *   Legal ops: ! ~ & ^ | + << >>
  *   Max ops: 16
  *   Rating: 3
- */
+ *///((!!x - 1) | y)&((!x - 1) | z)
+//x为真，需要0000与y按位或，否则1111(-1)与y按位或；x为假，0000与z按位或
 int conditional(int x, int y, int z) {
-  return 2;
+  return ((!!x + (~1+1)) | y)&((!x + (~1+1)) | z);
 }
 /* 
  * isLessOrEqual - if x <= y  then return 1, else return 0 
@@ -218,8 +219,12 @@ int conditional(int x, int y, int z) {
  *   Max ops: 24
  *   Rating: 3
  */
+//注意大于等于0符号位相等,因此转化为 y-x >=0,另外注意被减数为tmin时，-tmin=tmin，要特判
+//再次要注意溢出，y-x不会正溢出，但是会负溢出，y为负，x为正情况可能溢出为正数。
+//y，-x的第二位都是0的负数就会溢出了
 int isLessOrEqual(int x, int y) {
-  return 2;
+  int flag = !((y >> 31) & !(x >> 31));
+  return (!((~x+1) ^ x) | !((y + (~x+1)) >> 31)) & flag;
 }
 //4
 /* 

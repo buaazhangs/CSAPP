@@ -8,6 +8,7 @@ int main(){
     pointer start = (pointer)&a;//以无符号数表示
     for(int i = 0;i < 4;i++){
         printf("%p\t0x%.2x\n",start+i,start[i]);
+        printf("%p   0x%.2x\n",exam+i,*(exam+i));
     }
     return 0;
 }
