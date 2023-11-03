@@ -220,11 +220,15 @@ int conditional(int x, int y, int z) {
  *   Rating: 3
  */
 //注意大于等于0符号位相等,因此转化为 y-x >=0,另外注意被减数为tmin时，-tmin=tmin，要特判
-//再次要注意溢出，y-x不会正溢出，但是会负溢出，y为负，x为正情况可能溢出为正数。
+//再次要注意溢出，正溢出情况为y为正，x为负，负溢出情况为y为负，x为正
 //y，-x的第二位都是0的负数就会溢出了
 int isLessOrEqual(int x, int y) {
-  int flag = !((y >> 31) & !(x >> 31));
-  return (!((~x+1) ^ x) | !((y + (~x+1)) >> 31)) & flag;
+  int a = x >> 31;//x<0
+  int b = y >> 31;//y<0
+  int c = !b & a;//y为正且x为负，c为真一定为真.c为假不一定为假
+  int d = b & !a;//y为负且x为正，d为真一定为假，d为假不一定为真
+  int e = !((y + (~x+1)) >> 31);//y-x不溢出情况，c,d都为假，e来决定真假
+  return c |(!d & e);
 }
 //4
 /* 
@@ -235,8 +239,12 @@ int isLessOrEqual(int x, int y) {
  *   Max ops: 12
  *   Rating: 4 
  */
+//x == 0 trans to x >= 0 and x - 1 <= 0
+//注意int补码右移为算数右移，继续填充符号位
+//~x+1 >> 31 负数和0能得到0，但0本身符号位为0，负数本身符号位为1，因此x | ~x+1
+//((x | (~x +1)) >> 31)，0得到0，其余得到11111111，然后再加1即可。
 int logicalNeg(int x) {
-  return 2;
+  return ((x | (~x +1)) >> 31) + 1;
 }
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
@@ -250,8 +258,28 @@ int logicalNeg(int x) {
  *  Max ops: 90
  *  Rating: 4
  */
+//正数，最高位+1，负数，取反+1后，新数的最高位+1
+//获取最高位方法：分治，
+//先判断高16为是否为0，即!!(x>>16),若不为0，说明至少有16位，因此左移4为，变为16，即10000
+//因此b16为！！(x>>16)<<4,
+//然后，根据b16情况，如果高位有值分析高位，右移16位，否则分析低位，右移0位。
 int howManyBits(int x) {
-  return 0;
+    int b16,b8,b4,b2,b1,b0;
+    int flag=x>>31;
+    x=(flag&~x)|(~flag&x); //x为非正数则不变 ,x 为负数 则相当于按位取反
+    b16=!!(x>>16) <<4; //如果高16位不为0,则我们让b16=16
+    x>>=b16; //如果高16位不为0 则我们右移动16位 来看高16位的情况
+    //下面过程基本类似
+    b8=!!(x>>8)<<3;
+    x >>= b8;
+    b4 = !!(x >> 4) << 2;
+    x >>= b4;
+    b2 = !!(x >> 2) << 1;
+    x >>= b2;
+    b1 = !!(x >> 1);
+    x >>= b1;
+    b0 = x;
+  return b0+b1+b2+b4+b8+b16+1;
 }
 //float
 /* 
@@ -265,8 +293,34 @@ int howManyBits(int x) {
  *   Max ops: 30
  *   Rating: 4
  */
+//f = (-1)^s * M * 2^E
+//s:1,exp:8,frac:23
+//E = exp - bias,M=1.xxxx,xxxx为frac表示的二进制小数
+/*
+0x1表示的依然不是0x1，尾数表示的是2^-23*1，
+指数表示的是1-bias，非规格化数，bias = 2^7，
+因此E = 1 - 2^7 = -126，所以此时表示的是浮点数（2^-126 * 1*2^-23）,
+而0x2表示的是（2^-126 * 2*2^-23）
+*/
+//所以总的做法为，先提取各个部分，然后判断规格化属性，exp全0为非标准
+//非规格化为frac左移 << 1即可,
+//另外，exp全1且frac非0为nan，返回uf
+//exp全1且frac全0为inf，也直接返回uf
+//其他情况,规格化部分为exp项加1
 unsigned floatScale2(unsigned uf) {
-  return 2;
+  int sign = uf >> 31;
+  int exp = (uf >> 23) & (0xFF);
+  int frac = uf & (0x7FFFFF);
+  if (exp == 0x00){
+    frac = frac << 1;
+    return sign << 31 | exp << 23 | frac;
+  }
+  else if(exp == 0xFF){
+    return uf;
+  }
+  else{
+    return uf + 0x800000;
+  }
 }
 /* 
  * floatFloat2Int - Return bit-level equivalent of expression (int) f
