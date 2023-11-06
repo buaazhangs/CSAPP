@@ -143,7 +143,7 @@ NOTES:
  *   Rating: 1
  */
 int bitXor(int x, int y) {
-  return x ^ y;
+  return ~(~x&~y)&~(x&y);
 }
 /* 
  * tmin - return minimum two's complement integer 
@@ -298,12 +298,13 @@ int howManyBits(int x) {
 //E = exp - bias,M=1.xxxx,xxxx为frac表示的二进制小数
 /*
 0x1表示的依然不是0x1，尾数表示的是2^-23*1，
-指数表示的是1-bias，非规格化数，bias = 2^7，
+指数表示的是1-bias，非规格化数，bias = 2^7 - 1，
 因此E = 1 - 2^7 = -126，所以此时表示的是浮点数（2^-126 * 1*2^-23）,
 而0x2表示的是（2^-126 * 2*2^-23）
 */
-//所以总的做法为，先提取各个部分，然后判断规格化属性，exp全0为非标准
-//非规格化为frac左移 << 1即可,
+//所以总的做法为，先提取各个部分，然后判断规格化属性，exp全0为非规格化
+//非规格化为，E = 1 - bias,规格化为E = exp - bias,
+//因此非规格化frac左移 << 1即可,
 //另外，exp全1且frac非0为nan，返回uf
 //exp全1且frac全0为inf，也直接返回uf
 //其他情况,规格化部分为exp项加1
@@ -319,7 +320,7 @@ unsigned floatScale2(unsigned uf) {
     return uf;
   }
   else{
-    return uf + 0x800000;
+    return uf + 0x800000;//exp项加1
   }
 }
 /* 
@@ -334,8 +335,48 @@ unsigned floatScale2(unsigned uf) {
  *   Max ops: 30
  *   Rating: 4
  */
+//返回uf的int项，uf使用unsigned表示各个位
+//注意int(2.999) = 2
+//int(-3.5) = -3
+//非normal，为0
+//normal,E = exp - bias,bias = 127 
+//本身frac部分就是右移多个的数据，我们解出E的值，
+//根据值的正负性左移或右移，得出新结果再右移23个后得到的值即为int
 int floatFloat2Int(unsigned uf) {
-  return 2;
+  int sign = uf >> 31;
+  int exp = (uf >> 23) & (0xFF);
+  int frac = uf & (0x7FFFFF);
+  int bias = (0x1 << 7) - 1;
+  int res;
+  if (exp == 0x00){
+    return 0x0;
+  }
+  else if(exp == 0xFF){
+    return 0x80000000;
+  }
+  else{
+    int E = exp - bias;
+    if(E > 31)
+      return 0x80000000;
+    frac = frac + 0x800000;//规格化数
+    //注意下面的分类，不能完全的左移右移，
+    //完全的左移再右移或右移再左移都会有损失。
+    //因此要进行分类讨论
+    if ((E - 23) >= 0){
+      res = frac << (E-23);
+    }
+    else if (E >= 0 && E <= 23){
+      res = frac >> (23 - E);
+    }
+    else
+      return 0x0;
+    if (sign == 1){
+      return ~res + 1;
+    }
+    else{
+      return res;
+    }
+  }
 }
 /* 
  * floatPower2 - Return bit-level equivalent of the expression 2.0^x
@@ -350,6 +391,13 @@ int floatFloat2Int(unsigned uf) {
  *   Max ops: 30 
  *   Rating: 4
  */
+//exp范围为1-254，E范围为-126 <= E <= 127
+//frac均为0，
 unsigned floatPower2(int x) {
-    return 2;
+  if (x <= -126)
+    return 0x0;
+  else if (x > 127)
+    return 0x0FF << 23;
+  else
+    return (x + ((0x1 << 7) - 1)) << 23;
 }
