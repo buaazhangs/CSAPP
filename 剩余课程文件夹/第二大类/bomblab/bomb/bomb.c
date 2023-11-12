@@ -3,7 +3,9 @@
  * Copyright 2011, Dr. Evil Incorporated. All rights reserved.
  *
  * LICENSE:
- *
+ *该实验的目的是通过反汇编可执行程序，来反推出程序执行内容，进而能够正确破解”密码“，解除“炸弹”。
+ *一共六个阶段的炸弹，从 phase_1 到 phase_6，都是 读取字符串，处理字符串，当前阶段炸弹拆除 的步骤
+ 每个phase都是被写好的可执行文件，无法直接看到c源码，只能通过可执行文件反编译
  * Dr. Evil Incorporated (the PERPETRATOR) hereby grants you (the
  * VICTIM) explicit permission to use this bomb (the BOMB).  This is a
  * time limited license, which expires on the death of the VICTIM.
