@@ -126,5 +126,5 @@ write-back写回:缓存将要被覆盖时，且被改变时写回（因此需要
 <img src="markdown图片/屏幕截图 2023-11-20 174132.png" alt="图片alt" title="图片title"><br>
 
 #### 改善时间局部性：
-使用blocking（阻塞）改善时间局部性：
+使用blocking（分块）改善时间局部性：
 
