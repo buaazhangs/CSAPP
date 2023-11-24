@@ -22,8 +22,7 @@ int main(){
     pid = Fork();
     if (pid == 0){
         printf("child process:%d\n",++x);
-        exit(0);
     }
-    printf("father process:%d\n",--x);
+    printf("father or child:%d\n",--x);
     exit(0);
 }
