@@ -16,6 +16,7 @@ int main(){
         printf("signal error");
         exit(0);
     }
+        i++;
         printf("1\t");
     }
     return 0;

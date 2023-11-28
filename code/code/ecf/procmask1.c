@@ -2,6 +2,7 @@
 
 void initjobs()
 {
+
 }
 
 void addjob(int pid)

@@ -1,4 +1,5 @@
 #include "csapp.h"
+#include<x86_64-linux-gnu/bits/sigaction.h>
 
 void initjobs()
 {
@@ -37,7 +38,8 @@ int main(int argc, char **argv)
     
 	/* Child process */
 	if ((pid = Fork()) == 0) {
-	    Sigprocmask(SIG_UNBLOCK, &mask, NULL); /* Unblock SIGCHLD */
+		//信号阻塞不会阻塞发送，实际上这一步是多余的，除非子进程需要接收信号
+	    Sigprocmask(SIG_UNBLOCK, &mask, NULL); /* Unblock SIGCHLD*/
 	    Execve("/bin/date", argv, NULL);
 	}
 
