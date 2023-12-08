@@ -4,6 +4,7 @@
 #include<unistd.h>
 #include<x86_64-linux-gnu/bits/sigaction.h>
 volatile long cnt = 2;
+size_t t = 20;
 
 void handler1(int sig){
     sigset_t mask,prev_mask;//初始都为空
