@@ -97,3 +97,39 @@ dup2函数，改变文件描述符指向的文件打开表。
 ## 标准IO：
 标准IO的流缓冲区实际上与RIO的预先加载缓冲区一个含义，见下图：<br>
 <img src="markdown图片/屏幕截图 2024-01-30 131132.png" alt="图片alt" title="图片title"><br>
+
+
+# 网络编程
+1. 客户端-服务器的进程思想
+2. unix将网络抽象为一个磁盘上的文件，如下：
+   <img src="markdown图片/屏幕截图 2024-02-17 171836.png" alt="图片alt" title="图片title"><br>
+   可以看出，与外界沟通的网络与磁盘的定位是一样的。
+3. 计网简介，简要复习：
+   <img src="markdown图片/屏幕截图 2024-02-17 205128.png" alt="图片alt" title="图片title"><br>
+## IP协议
+1. IP地址，网络大端字节序与小端字节序的转化
+2. 域名系统，映射规则：<br>
+   **映射实现算法：DNS（domain name system）：**<br>
+   一个巨大的分布式系统,分布式数据库。<br>
+   **一个域名映射一个或多个IP地址(该服务有多个服务器)，一个IP地址映射一个或多个域名（该IP地址有有多种域名）。**<br>
+3. internet连接：
+   在IP协议找到地址后，进行TCP传输控制协议，负责两台计算机点对点的协议。**这也被称为socket通信**<br>
+   1. 每一个socket包括IP地址和端口号，端口号的存在目的是因为同一个机器上会有多个服务器进程的存在，需要这个16位的端口号加以区分。<br>
+   <img src="markdown图片/屏幕截图 2024-03-01 132102.png" alt="图片alt" title="图片title"><br>
+   **一般来说，客户端发起连接时，端口是由内核分配的临时端口，链接到服务器的则是well-known知名端口。**<br>
+   上述连接，由内核区分不同的端口。<br>
+   <img src="markdown图片/屏幕截图 2024-03-02 120913.png" alt="图片alt" title="图片title"><br>
+
+## socket（套接字）接口：
+socket简介：<br>
+1. 从内核看，他是一个网络的节点
+2. 从应用程序角度看，它是一个磁盘文件，一个文件描述符。<br>
+<img src="markdown图片/屏幕截图 2024-03-02 121639.png" alt="图片alt" title="图片title"><br>
+
+### 套接字地址结构：
+套接字地址是一个16字节的结构，其构成如下图：<br>
+<img src="markdown图片/屏幕截图 2024-03-02 123216.png" alt="图片alt" title="图片title"><br>
+
+
+### socket连接概述：
+<img src="markdown图片/屏幕截图 2024-03-02 160249.png" alt="图片alt" title="图片title"><br>
