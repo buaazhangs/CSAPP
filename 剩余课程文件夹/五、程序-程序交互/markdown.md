@@ -121,7 +121,7 @@ dup2函数，改变文件描述符指向的文件打开表。
    <img src="markdown图片/屏幕截图 2024-03-02 120913.png" alt="图片alt" title="图片title"><br>
 
 ## socket（套接字）接口：
-socket简介：<br>
+何为套接字，socket简介：<br>
 1. 从内核看，他是一个网络的节点
 2. 从应用程序角度看，它是一个磁盘文件，一个文件描述符。<br>
 <img src="markdown图片/屏幕截图 2024-03-02 121639.png" alt="图片alt" title="图片title"><br>
@@ -131,5 +131,27 @@ socket简介：<br>
 <img src="markdown图片/屏幕截图 2024-03-02 123216.png" alt="图片alt" title="图片title"><br>
 
 
-### socket连接概述：
+## socket连接概述：
 <img src="markdown图片/屏幕截图 2024-03-02 160249.png" alt="图片alt" title="图片title"><br>
+
+从上层函数开始介绍：<br>
+1. getaddrinfo（某种nslookup）:
+   将主机名，主机地址；服务名，端口号的字符串表示转化成套接字地址结构。**实际上就是通过DNS获取IP地址和端口号**，反向的查找有getnameinfo函数。
+2. socket函数：<br>
+   创建一个套接字描述符，返回一个文件描述符。
+3. 服务器端bind函数，listen，accept函数：<br>
+   bind函数告诉内核把相应的套接字地址和套接字描述符联系起来，**函数接收本机IP地址和端口，返回文件描述符，实际上bind（绑定）函数就是告诉内核，将某个IP地址和端口号和文件描述符对应在一起**<br>
+   listen函数告诉内核该进程的该套接字文件描述符对应的是服务器端**通常来说，socket返回的文件描述符，内核会记录它是一个主动描述符，用于客户端。利用listen函数可以将其转化为监听描述符，监听描述符作用是告诉操作系统这个端口的请求正被这个进程所监听**<br>
+   accept函数用于做监听列表中获取连接<br>
+   **accept函数会返回一个新的文件描述符**，介绍如下：<br>
+   <img src="markdown图片/屏幕截图 2024-03-04 172750.png" alt="图片alt" title="图片title"><br>
+   1. 客户端，服务器各自使用socket，获得对应的网络连接文件描述符
+   2. 客户端通过connect发出连接请求，服务器的内核分析地址找到对应的端口，从而找到对应的accept函数
+   3. accept函数fork当前进程（也可能不fork），但总之他创建一个新的文件描述符，这个新的文件描述符与客户端通信。
+4. connect函数<br>
+
+PS:**一个进程能够创建多个socket，这多个socket能分别bind多个端口**
+
+5. 读写通信过程
+   类似文件读写，直到客户端发出EOF。
+   
