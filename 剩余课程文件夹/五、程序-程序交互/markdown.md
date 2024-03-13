@@ -141,6 +141,7 @@ dup2函数，改变文件描述符指向的文件打开表。
    创建一个套接字描述符，返回一个文件描述符。
 3. 服务器端bind函数，listen，accept函数：<br>
    bind函数告诉内核把相应的套接字地址和套接字描述符联系起来，**函数接收本机IP地址和端口，返回文件描述符，实际上bind（绑定）函数就是告诉内核，将某个IP地址和端口号和文件描述符对应在一起**<br>
+   **另外，注意端口号是所有进程公用的，因此同一端口号是竞争性的，各个进程之间相互竞争，当然，同一端口号也可与多个进程中的文件描述符绑定**
    listen函数告诉内核该进程的该套接字文件描述符对应的是服务器端**通常来说，socket返回的文件描述符，内核会记录它是一个主动描述符，用于客户端。利用listen函数可以将其转化为监听描述符，监听描述符作用是告诉操作系统这个端口的请求正被这个进程所监听**<br>
    accept函数用于做监听列表中获取连接<br>
    **accept函数会返回一个新的文件描述符**，介绍如下：<br>
@@ -154,4 +155,45 @@ PS:**一个进程能够创建多个socket，这多个socket能分别bind多个�
 
 5. 读写通信过程
    类似文件读写，直到客户端发出EOF。
+
+**上述过程包装函数**
+1. 客户端，openclientfd
+2. 服务器端，openlistenfd
    
+## web服务器样例，echo服务器与客户端：
+<img src="markdown图片/屏幕截图 2024-03-11 214601.png" alt="图片alt" title="图片title"><br>
+如图所示，openclientfd连接了某个host：：post，获取了文件描述符cilentfd，自己随机分配了端口。  
+然后通过相应的文件描述符获取数据<br>
+**如何处理网络数据不能及时到达以及部分到达的问题？**
+**使用robust-IO,这能利用缓冲区，以及在未获得服务器数据，或者未达到读取字节要求时的while循环进行等待，来确保获得网络数据。**  
+
+<img src="markdown图片/屏幕截图 2024-03-12 195915.png" alt="图片alt" title="图片title"><br>
+while循环中，accept完成连接，获取客户端连接文件描述符，然后根据客户端信息getnameinfo，获取客户端IP。  
+echo函数：<br>
+包含读取客户端文件描述符和向其中写入。
+
+## HTTP
+telnet www.cs.cmu.edu 80
+
+GET /~bryant/test.html HTTP/1.1
+
+Host: www.cs.cmu.edu
+
+可以参考上面这一段的返回
+
+## web
+可以理解为一个通过网络连接的分布式文件系统。<br>
+通过URL，URL中包括域名（或者IP加端口），和该域名服务器的相应文件。<br>
+分析一个动态服务器（例如，服务器文件为可执行文件的情况）的逻辑：<br>
+1.首先，服务器端收到连接，通过fork，然后exec执行URL中说明的文件
+<img src="markdown图片/屏幕截图 2024-03-12 212844.png" alt="图片alt" title="图片title"><br>
+2.可执行文件执行，得到结果发回服务器进程，服务器再发给客户端<br>
+<img src="markdown图片/屏幕截图 2024-03-12 213218.png" alt="图片alt" title="图片title"><br>
+其中细节：<br>
+<img src="markdown图片/屏幕截图 2024-03-12 213415.png" alt="图片alt" title="图片title"><br>
+上述细节，实际上被称为CGI，通用网络接口。<br>
+1. 客户端通过URL发生request给服务器：<br>
+<img src="markdown图片/屏幕截图 2024-03-12 212113.png" alt="图片alt" title="图片title"><br>
+2. 服务器通过环境变量传递arguments给子进程。
+3. 服务器捕获子进程的输出，通过下述方式。
+<img src="markdown图片/屏幕截图 2024-03-12 214031.png" alt="图片alt" title="图片title"><br>
