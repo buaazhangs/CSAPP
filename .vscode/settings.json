@@ -110,6 +110,7 @@
         "variant": "cpp",
         "csapp.h": "c",
         "signal.h": "c",
-        "unistd.h": "c"
+        "unistd.h": "c",
+        "pthread.h": "c"
     }
 }
