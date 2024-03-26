@@ -27,11 +27,11 @@ void sbuf_deinit(sbuf_t *sp)
 /* $begin sbuf_insert */
 void sbuf_insert(sbuf_t *sp, int item)
 {
-    P(&sp->slots);                          /* Wait for available slot */
-    P(&sp->mutex);                          /* Lock the buffer */
+    //P(&sp->slots);                          /* Wait for available slot */
+    //P(&sp->mutex);                          /* Lock the buffer */
     sp->buf[(++sp->rear)%(sp->n)] = item;   /* Insert the item */
-    V(&sp->mutex);                          /* Unlock the buffer */
-    V(&sp->items);                          /* Announce available item */
+    //V(&sp->mutex);                          /* Unlock the buffer */
+    //V(&sp->items);                          /* Announce available item */
 }
 /* $end sbuf_insert */
 
@@ -40,11 +40,11 @@ void sbuf_insert(sbuf_t *sp, int item)
 int sbuf_remove(sbuf_t *sp)
 {
     int item;
-    P(&sp->items);                          /* Wait for available item */
-    P(&sp->mutex);                          /* Lock the buffer */
+    //P(&sp->items);                          /* Wait for available item */
+    //P(&sp->mutex);                          /* Lock the buffer */
     item = sp->buf[(++sp->front)%(sp->n)];  /* Remove the item */
-    V(&sp->mutex);                          /* Unlock the buffer */
-    V(&sp->slots);                          /* Announce available slot */
+    //V(&sp->mutex);                          /* Unlock the buffer */
+    //V(&sp->slots);                          /* Announce available slot */
     return item;
 }
 /* $end sbuf_remove */

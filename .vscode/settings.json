@@ -111,6 +111,8 @@
         "csapp.h": "c",
         "signal.h": "c",
         "unistd.h": "c",
-        "pthread.h": "c"
+        "pthread.h": "c",
+        "sbuf.h": "c",
+        "stdlib.h": "c"
     }
 }
