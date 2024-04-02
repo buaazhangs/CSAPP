@@ -270,8 +270,8 @@ execve提供可执行文件的文件名，以及该文件需要的参数argv和e
 
 ## shell，linux进程架构：
 <img src="markdown图片/屏幕截图 2023-11-24 174627.png" alt="图片alt" title="图片title"><br>
-shell命令的实现：
-<img src="markdown图片/屏幕截图 2023-11-24 174627.png" alt="图片alt" title="图片title"><br>
+shell命令的实现：<br>
+
 执行eval函数计算表达式：<br>
 
 eval函数解析：<br>

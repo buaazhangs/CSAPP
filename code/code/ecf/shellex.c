@@ -34,7 +34,7 @@ void eval(char *cmdline)
     pid_t pid;           /* Process id */
     
     strcpy(buf, cmdline);
-    bg = parseline(buf, argv); 
+    bg = parseline(buf, argv);  // 解析buf到argv字符串数组内，即分割空格函数
     if (argv[0] == NULL)  
 	return;   /* Ignore empty lines */
 
@@ -78,7 +78,7 @@ int parseline(char *buf, char **argv)
     int bg;              /* Background job? */
 
     buf[strlen(buf)-1] = ' ';  /* Replace trailing '\n' with space */
-    while (*buf && (*buf == ' ')) /* Ignore leading spaces */
+    while (*buf && (*buf == ' ')) /* Ignore leading spaces *///忽视开头空格
 	buf++;
 
     /* Build the argv list */

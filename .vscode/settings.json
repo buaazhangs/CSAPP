@@ -114,5 +114,8 @@
         "pthread.h": "c",
         "sbuf.h": "c",
         "stdlib.h": "c"
+    },
+    "files.exclude": {
+        "**/.git": false
     }
 }

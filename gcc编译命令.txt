@@ -1,0 +1,5 @@
+gcc pro-con.c /root/workspace/CSAPP/code/code/conc/sbuf.c -o pro-con 
+-I /root/workspace/CSAPP/code/code/conc -lcsapp -lpthread
+// gcc后跟两个.c文件，进行联合编译
+//-I 后的目录告诉gcc获取源文件的位置
+//-l 链接你的库，但不包括lib前缀和扩展名，例如libcsapp.dll,应输入-lcsapp
