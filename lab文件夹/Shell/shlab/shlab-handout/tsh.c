@@ -49,6 +49,8 @@ struct job_t {              /* The job struct */
     char cmdline[MAXLINE];  /* command line */
 };
 struct job_t jobs[MAXJOBS]; /* The job list */
+// 用于向waitfg反映前台进程结束
+volatile sig_atomic_t flag_pid = 0;
 /* End global variables */
 
 
@@ -153,7 +155,7 @@ int main(int argc, char **argv)
 
     exit(0); /* control never reaches here */
 }
-  
+
 /* 
  * eval - Evaluate the command line that the user has just typed in
  * 
@@ -185,14 +187,24 @@ void eval(char *cmdline)
     */
     if (argv[0] == NULL)  
 	return;   /* Ignore empty lines */
-    // 2.内置命令
-    if (!builtin_cmd(argv)) {
-        // 3.外部命令，子进程程序
+    //2.解析后的处理部分
+//     在 eval 中，父级必须使用 sigprocmask 在分叉子级之前阻塞 SIGCHLD 信号，然后在通过调用 
+// addjob  将子级添加到作业列表后再次使用  sigprocmask  解除这些信号的阻塞。由于子代继承
+// 了父代的阻塞向量，子代必须确保在执行新程序之前解除 SIGCHLD 信号的阻塞
+    sigset_t mask,prev_mask,gdb_set;
+    sigemptyset(&mask);
+    sigemptyset(&prev_mask);
+    sigemptyset(&gdb_set);
+    sigaddset(&mask,SIGCHLD);
+
+    if (!builtin_cmd(argv)) {// 3.处理内置命令
+        // 4.外部命令，子进程程序
+        sigprocmask(SIG_BLOCK,&mask,&prev_mask);//父子进程均阻塞sigchld
         if ((pid = fork()) == 0) {   /* Child runs user job */
-            //只要子进程执行了，就设置新进程组，并添加进jobs
+            //只要子进程执行了，就设置新进程组，并在shell添加进jobs
             //并未执行则不做这些动作
             setpgid(0,0);//此时设置子进程ID为子进程组ID
-            
+            sigprocmask(SIG_SETMASK,&prev_mask,NULL);
 	        if (execve(argv[0], argv, environ) < 0) {
 		        printf("%s: Command not found.\n", argv[0]);
 		        exit(0);
@@ -200,13 +212,19 @@ void eval(char *cmdline)
 	    }
     // 记录打开的进程,只记录了他们的最上层进程
     /* Parent waits for foreground job to terminate */
-	    if (!bg) {
-            addjob(jobs,pid,FG,cmdline);
-	        waitfg(pid);
+	    //前台运行
+        if (!bg) {
+            addjob(jobs,pid,FG,cmdline);//此addjob需要再子进程结束信号到达前运行
+            //先不解除阻塞
+	        waitfg(pid);//内部有临时解除阻塞
+            sigprocmask(SIG_SETMASK,&prev_mask,NULL);//解除SIGCHLD的阻塞
 	    }
+        //后台运行
 	    else{
             addjob(jobs,pid,BG,cmdline);
-            printf("%d %s", pid, cmdline);
+            int jid = pid2jid(pid);
+            printf("[%d] (%d) %s",jid, pid, cmdline);
+            sigprocmask(SIG_SETMASK,&prev_mask,NULL);//解除SIGCHLD的阻塞
         }
     }
 // 4.回收子进程
@@ -312,33 +330,42 @@ struct job_t jobs[MAXJOBS];  The job list
 void do_bgfg(char **argv) 
 {
     char* ID = argv[1];
-    struct job_t IDjob;
+    struct job_t* IDjob;
     pid_t pid;
     pid_t pgid;
+    int jid;
     int status;
-    if(ID[0] == '%'){
-        int JID = atoi(&ID[1]);
-        IDjob = *getjobjid(jobs,JID);
-        pid = IDjob.pid;
+    char fg_char[] = {FG + '0', '\0'};
+    char bg_char[] = {BG + '0', '\0'};
+    char* fg = fg_char;
+    char* bg = bg_char;
+    //获取job，pid，pgid
+    if(ID[0] == '%'){//输入为jid
+        jid = atoi(&ID[1]);
+        IDjob = getjobjid(jobs,jid);
+        pid = IDjob->pid;
         pgid = __getpgid(pid);
     }
     else{
         pid = atoi(&ID[0]);
         pgid = __getpgid(pid);
-        int id = pid2jid(pid);
-        IDjob = jobs[id];
+        jid = pid2jid(pid);
+        IDjob = getjobjid(jobs,jid);
     }
-    if(!strcmp(argv[0], BG)){
-        if(IDjob.state == ST){
-            if(!kill(-pgid,SIGCONT))
-                IDjob.state == BG;
+    //printf("Job [%d] (%d) %s\n",jid, pid, IDjob->cmdline);
+    if(!strcmp(argv[0], "bg")){
+        if(IDjob->state == ST){//继续进程的运行，但放入后台
+            if(!kill(-pgid,SIGCONT)){
+                IDjob->state = BG;
+                printf("Job [%d] (%d) %s",jid, pid, IDjob->cmdline);
+            }
         }
     }
-    else if(!strcmp(argv[0], FG)){
-        if(IDjob.state == ST || IDjob.state == BG){
+    else if(!strcmp(argv[0], "fg")){//继续进程的运行，且放入前台
+        if(IDjob->state == ST || IDjob->state == BG){
             if(!kill(-pgid,SIGCONT)){
-                IDjob.state == FG;
-                //waitpid(pid,status,0);
+                IDjob->state = FG;
+                //printf("Job [%d] (%d) %s",jid, pid, IDjob->cmdline);
                 waitfg(pid);
             }
         }
@@ -349,15 +376,23 @@ void do_bgfg(char **argv)
 /* 
  * waitfg - Block until process pid is no longer the foreground process
  */
-void waitfg(pid_t pid)
+// 要考虑等待前台进程与sigchild的竞争问题，不要在这里使用waitpid
+// 包括被前台进程被暂停的情况
+void waitfg(pid_t pid)//传入的为前台进程pid
 {
     int status;
-    if (waitpid(pid, &status, 0) < 0){
-        if(errno == ECHILD)
-            unix_error("foreground process don't have child process\n");
-        else if(errno == EINTR)
-            unix_error("waitpid 被信号中断\n");
+    sigset_t mask;
+    sigemptyset(&mask);
+    // 当sigchld_handlers修改flagpid为前台进程pid时，退出循环
+    while(flag_pid != pid){
+        sigsuspend(&mask);//取消阻塞sigchild并休眠（该函数原子的，不间断的进行）
     }
+    // if (waitpid(pid, &status, 0) < 0){
+    //     if(errno == ECHILD)
+    //         unix_error("foreground process don't have child process\n");
+    //     else if(errno == EINTR)
+    //         unix_error("waitpid 被信号中断\n");
+    // }
     return;
 }
 
@@ -374,29 +409,26 @@ void waitfg(pid_t pid)
  * 子进程暂停或者终止时，发送SIGCHLD信号
  * 该程序运行时收回所有僵尸进程，但不会wait任何其他正在运行的子进程
  * 打印一条带有作业 PID 和违规信号描述的消息。
+ * 同时还需要delete该pid的job
  */
+// 收到了某个子进程（头部的）的终止或者停止信号
+// 注意，子进程继承父进程的信号处理函数
+// 
+// 进程可以保存其直接子进程的情况，因此waitpid（-1，，）等待其直接子进程
 void sigchld_handler(int sig) 
 {
+    //1.遍历job，获取当前前台进程id
+    pid_t fg_pid = fgpid(jobs);
+    int status;
+    pid_t wpid;
     //遍历所有子进程，回收僵尸进程
-    //1.遍历job，获取进程组ID
-    for (int i = 0; i < MAXJOBS; i++)
-    {
-        if (jobs[i].pid != 0)
-        {   
-            int status;
-            pid_t pgid = __getpgid(jobs[i].pid);
-            pid_t jobpid = jobs[i].pid;
-            pid_t wpid;
-            //NOHANG只检查终止的状态，并且不等待，并回收所有僵尸进程
-            while((wpid = waitpid(-pgid, &status, WNOHANG))){
-
-            }
-            //如果该进程组头部进程被改变，则job里面修改或删除相应进程组信息
-            //若进程组空，delete
-
-            //若进程组头部进程终止，随机使用一份进程作为jobs[i].pid
-            
+    while((wpid = waitpid(-1, &status, WNOHANG)) > 0){
+        //2.假如wpid与前台进程id一致，修改flag_pid
+        if(wpid == fg_pid){
+            flag_pid = wpid;
         }
+        //3.删除job
+        deletejob(jobs,wpid);
     }
     return;
 }
@@ -406,8 +438,13 @@ void sigchld_handler(int sig)
  *    user types ctrl-c at the keyboard.  Catch it and send it along
  *    to the foreground job.  Ctrlc终止所有前台进程
  */
+// 已经给前台进程设置pgid为其pid
 void sigint_handler(int sig) 
 {
+    pid_t fg_pid = fgpid(jobs);
+    kill(-fg_pid, SIGINT);
+    int jid = pid2jid(fg_pid);
+    printf("Job [%d] (%d) terminated by signal 2\n",jid, fg_pid);
     return;
 }
 
@@ -418,6 +455,16 @@ void sigint_handler(int sig)
  */
 void sigtstp_handler(int sig) 
 {
+    pid_t fg_pid = fgpid(jobs);
+    struct job_t* IDjob;
+    
+    int jid = pid2jid(fg_pid);
+    IDjob = getjobjid(jobs,jid);
+    if (!kill(-fg_pid, SIGTSTP)){
+        IDjob->state = ST;
+        flag_pid = fg_pid;//终止了前台进程
+    }
+    printf("Job [%d] (%d) stopped by signal 20\n",jid, fg_pid);
     return;
 }
 

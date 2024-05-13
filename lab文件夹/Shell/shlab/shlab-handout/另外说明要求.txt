@@ -1,0 +1,47 @@
+1. test是自己的，rtest是正确答案,输出对上即可
+
+2. fork后台进程运行时，显示：[JID] (pid) cmd
+tsh> ./myspin 20 &
+[1] (3711) ./myspin 20 &
+tsh> jobs
+[1] (3711) Running ./myspin 20 &
+
+而运行前台进程则不需要输出别的东西
+3. ctrl+c ctrl+z 运行后，显示： job [JID] (pid) terminated by signal x
+tsh> ./myspin 20
+^CJob [1] (3878) terminated by signal 2
+
+
+gdb调试：(使用call + 相应运行函数)
+1.编译时使用-g选项保留调试信息
+2.p mask,显示{__val = {65536, 0 <repeats 15 times>}}，65536为1在第17位，即2^17,
+表示第17个信号为1。
+3.使用call sigismember(&mask, 17)查看sigset_t分析相应的信号是否被mask包含，
+返回1即被包含在mask中
+4.查看当前的pending和blocked位向量：
+sigpending：查看pending
+功能：读取当前进程的未决信号集，通过参数set传出
+头文件：#include<signal.h>
+返回值:成功返回0，失败返回-1
+int sigpending(sigset_t* set);
+利用sigprocmask查看block，how选用SIG_SETMASK,会将block放入set参数位置中
+注意，由于gdb不知道宏定义，因此需要call sigprocmask(2,&gdb_set,((void*)0))
+这样使用，NULL实际也是宏定义
+5.gdb调试过程发送信号，1.通过另一终端查看进程（ps -al），然后kill发送
+2.gdb内部使用函数，需要进行返回类型说明，如call (int) getpid()
+
+
+1.调试多进程程序，一个gdb只能跟踪一个进程，因此在父进程与子进程分别设置断点只有一个
+能响应
+2. 因此想要同时调试父子进程，需要两个gdb，且由于fork后gdb无法控制另一个进程的行为，
+因此需要人为的阻塞其中某一个进程的执行：
+if(pid == 0)
+{
+    int num =10;
+    while(num==10){
+        sleep(10);
+    }
+    printf("this is child,pid = %d\n",getpid());
+}
+然后利用另一个终端开另一个gdb，attach到该进程上。然后修改num的值来使得程序继续进行
+6.info inferiors查看当前被gdb管理的进程的信息
