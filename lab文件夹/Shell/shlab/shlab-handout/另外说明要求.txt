@@ -1,4 +1,6 @@
 1. test是自己的，rtest是正确答案,输出对上即可
+2.ctrl + K + F智能缩进
+3.理论上printf会用到全局变量，所以不同信号处理程序最好互相加阻塞
 
 2. fork后台进程运行时，显示：[JID] (pid) cmd
 tsh> ./myspin 20 &
